@@ -1,0 +1,17 @@
+.idea/
+.venv/
+__pycache__/
+.pytest_cache/
+
+# 生成产物（可从 config 重新生成）
+data/**/*.csv
+outputs/
+*.npz
+
+# 论文原文
+paper_text.txt
+documents/*.pdf
+
+# 系统文件
+.DS_Store
+Thumbs.db

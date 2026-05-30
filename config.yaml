@@ -1,0 +1,36 @@
+seed:
+  data_random_state: 0
+  observation_matrix_seed: 40
+
+numerical_simulation:
+  n_features: 20
+  state_dim: 2
+  n_modes: 4
+  n_train_per_mode: 1000
+  n_test_per_mode: 250
+  n_fault_per_mode: 125
+
+  fault_feature: 1
+  fault_bias: 4.0
+
+  timeseries_dims: [0, 1]
+
+model:
+  n_atoms: 80
+  sparsity: 3
+  update_sparsity_values: [3, 3, 5]
+  lambda_values: [3.0, 2.5, 2.6]
+  initial_max_iter: 30
+  update_max_iter: 30
+  tol: 1.0e-5
+
+monitoring:
+  kde_confidence: 0.99
+
+baselines:
+  pca_cpv: 0.85
+  max_iter: 30
+
+sensitivity_analysis:
+  lambda1_values: [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
+  n_runs: 5
