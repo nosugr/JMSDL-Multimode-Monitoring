@@ -20,8 +20,8 @@
 - KDE 全局控制限、在线 IRE 评分、故障判定。
 - 评价指标：`ds`、`MRE`、`FDR`、`FAR`。
 - 基线方法：`mPCA`、`DL`、`LCDL` 近似实现、`ODL` 近似实现。
-- 实验入口：JMSDL 单独运行、数值仿真多方法对比、`lambda1` 敏感性分析。
-- 单元测试，覆盖数据生成、稀疏编码、字典学习、监测指标和基线方法。
+- 实验入口：JMSDL 单独运行、数值仿真多方法对比、`lambda1` 敏感性分析、DL 与 JMSDL 连续学习对比。
+- 单元测试，覆盖数据生成、稀疏编码、字典学习、监测指标、基线方法、实验入口模块与可视化函数。
 
 ## 项目结构
 
@@ -48,18 +48,22 @@ JMSDL-Multimode-Monitoring/
 │
 ├── experiments/                 # 实验脚本
 │   ├── generate_data.py         # 生成数据和基础可视化
-│   ├── run_jmsdl.py             # JMSDL 单独训练与监测
 │   ├── exp_numerical.py         # 多方法数值仿真对比
 │   └── sensitivity_analysis.py  # lambda1 敏感性分析
+│
+├── main_model/                  # JMSDL 主模型相关脚本与产物
+│   ├── run_jmsdl/               # JMSDL 单独训练与监测（脚本与模型、分数、字典/监测/MRE 图同目录）
+│   │   └── run_jmsdl.py
+│   └── DL vs JMSDL/             # DL 与 JMSDL 连续学习对比（灾难性遗忘验证）
+│       └── continual_learning.py  # 各阶段字典对全工况测试集的重构误差对比图
 │
 ├── data/                        # 生成的数据
 │   ├── train/
 │   └── test/
 │
-├── outputs/                     # 实验输出
-│   ├── checkpoints/
-│   ├── figures/
-│   └── tables/
+├── outputs/                     # 实验输出（各实验脚本写入独立子目录）
+│   ├── exp_numerical/           # 多方法对比 FDR/FAR 表
+│   └── sensitivity_analysis/    # lambda1 敏感性分析表与图
 │
 └── tests/                       # 单元测试
 ```
@@ -96,11 +100,10 @@ pip install -r requirements.txt
 
 ```yaml
 seed:
-  data_random_state: 0
-  observation_matrix_seed: 40
+  random_state: 0
 ```
 
-`seed` 控制随机性。`data_random_state` 控制状态变量和噪声，`observation_matrix_seed` 控制各模态观测矩阵 `A_i`。
+`seed.random_state` 控制状态变量和噪声等数据生成与模型初始化的随机性。各模态观测矩阵 `A_i` 使用独立的固定种子（`generate_multimode_dataset` 的 `observation_matrix_seed` 默认参数，值为 40），以保证模态结构在不同 `random_state` 下稳定。
 
 ```yaml
 numerical_simulation:
@@ -110,9 +113,10 @@ numerical_simulation:
   n_train_per_mode: 1000
   n_test_per_mode: 250
   n_fault_per_mode: 125
-  fault_feature: 1
-  fault_bias: 4.0
+  fault_feature: 9
+  fault_bias: 3.3
   timeseries_dims: [0, 1]
+  kde_confidence: 0.99
 ```
 
 `numerical_simulation` 控制数值仿真数据。数据生成公式为：
@@ -121,7 +125,7 @@ numerical_simulation:
 x = A_i · s + e
 ```
 
-其中 `A_i` 是第 `i` 个模态的观测矩阵，`s` 是二维状态向量，`e` 是高斯噪声。`fault_feature: 1` 表示在第 2 个变量上注入偏置故障，`fault_bias: 4.0` 表示叠加 `+4`。
+其中 `A_i` 是第 `i` 个模态的观测矩阵，`s` 是二维状态向量，`e` 是高斯噪声。`fault_feature` 是注入偏置故障的变量索引（0 基），`fault_bias` 是叠加的偏置量。论文式 (26) 默认在 x2 上叠加 +4；本项目在调试故障可分性时调整为在第 10 个变量（`fault_feature: 9`）上叠加 `+3.3`，可按需改回论文设定。`kde_confidence` 控制 KDE 全局控制限的置信度。状态向量分布（`s1~N(2,1)`、`s2~N(3,1)`）与噪声标准差按论文式 (26) 固定，不在 config 中暴露。
 
 ```yaml
 model:
@@ -139,20 +143,7 @@ model:
 - `update_sparsity_values`：每次 JMSDL 更新所用的稀疏度。论文中 D2、D3 稀疏度为 3，D4 为 5，故默认 `[3, 3, 5]`。长度不足时用最后一个值补齐。
 - 数据默认按特征做 z-score 标准化。论文数据 `x = A·s + e` 的状态向量非零均值、各特征量级不一，若不标准化，重构项 `‖Xn − DnW‖²` 量级约为保留项 `λ1·tr(I − Doᵀ Dn)` 的 10 倍以上，导致论文给定的 `λ1`（2~3）几乎不起作用、出现灾难性遗忘。标准化使两项量级可比，是该方法生效的关键前处理。基线方法（DL/LCDL/ODL）使用各自训练数据拟合标准化参数，保证对比公平。
 
-```yaml
-monitoring:
-  kde_confidence: 0.99
-```
-
-`monitoring` 控制 KDE 全局控制限的置信度。
-
-```yaml
-baselines:
-  pca_cpv: 0.85
-  max_iter: 30
-```
-
-`baselines` 控制对比方法参数。
+对比方法（mPCA/DL/LCDL/ODL）的参数（如 PCA 累计方差贡献率、迭代次数）采用各自实现的默认值，不在 `config.yaml` 中暴露。
 
 ```yaml
 sensitivity_analysis:
@@ -203,7 +194,7 @@ data/test/test_pca_scatter.png
 运行：
 
 ```powershell
-python experiments/run_jmsdl.py
+python main_model/run_jmsdl/run_jmsdl.py
 ```
 
 该脚本会：
@@ -213,14 +204,19 @@ python experiments/run_jmsdl.py
 - 用训练集重构误差计算 KDE 控制限。
 - 对含故障测试集计算 IRE。
 - 输出 FDR/FAR 和每个样本的监测分数。
+- 绘制各阶段字典热力图、监测结果图、各字典对各模态的 MRE 折线图（复现论文 Fig.8）。
 
-输出文件：
+输出文件（均位于脚本同目录 `main_model/run_jmsdl/`）：
 
 ```text
-outputs/checkpoints/jmsdl_model.npz
-outputs/tables/jmsdl_scores.csv
-outputs/tables/jmsdl_fdr_far.csv
-outputs/tables/jmsdl_mre_by_mode.csv
+main_model/run_jmsdl/jmsdl_model.npz              训练好的各阶段字典 D1~D4 + 控制限
+main_model/run_jmsdl/jmsdl_scores.csv             逐样本监测分数、真实标签与预测标签
+main_model/run_jmsdl/D1_dictionary_heatmap.png    各阶段字典热力图（D1~D4）
+main_model/run_jmsdl/D2_dictionary_heatmap.png
+main_model/run_jmsdl/D3_dictionary_heatmap.png
+main_model/run_jmsdl/D4_dictionary_heatmap.png
+main_model/run_jmsdl/jmsdl_monitoring.png         监测结果图（分数 + 控制限 + 故障散点 + FDR/FAR）
+main_model/run_jmsdl/jmsdl_mre_matrix.png         各字典对各模态的 MRE 折线图
 ```
 
 ## 多方法对比实验
@@ -260,9 +256,32 @@ python experiments/sensitivity_analysis.py
 输出：
 
 ```text
-outputs/tables/fig5_sensitivity_raw.csv
-outputs/tables/fig5_sensitivity_summary.csv
-outputs/figures/fig5_sensitivity.png
+outputs/sensitivity_analysis/lambda1_ds_raw.csv
+outputs/sensitivity_analysis/lambda1_ds_summary.csv
+outputs/sensitivity_analysis/lambda1_ds_curve.png
+outputs/sensitivity_analysis/dictionary_diff_heatmaps.png
+```
+
+## DL 与 JMSDL 连续学习对比
+
+运行：
+
+```powershell
+python "main_model/DL vs JMSDL/continual_learning.py"
+```
+
+该脚本复现论文中"灾难性遗忘"的对比验证：
+
+- 传统 `DL`：`D1` 由 K-SVD 学得，之后每个阶段在上一字典基础上**只用当前模态数据**继续微调（无相似性保持项）。
+- `JMSDL`：`D1` 同样由 K-SVD 学得，之后按序贯方式做 JMSDL 更新（带相似性保持项）。
+- 两种方法的每个阶段字典都对**完整四工况测试集**做 OMP 重构，计算逐样本重构误差。
+
+两者共用 JMSDL 拟合得到的全局标准化参数，保证在同一尺度下比较。预期现象：传统 DL 在学完后续模态后会遗忘早期模态（早期样本段重构误差升高），而 JMSDL 各阶段对全部模态都保持较低重构误差。
+
+输出：
+
+```text
+main_model/DL vs JMSDL/continual_learning.png   2×4 面板，上排 DL（DRE），下排 JMSDL（IRE）
 ```
 
 ## 测试
@@ -275,12 +294,13 @@ python -m pytest
 
 当前测试覆盖：
 
-- 数据生成参数校验。
-- OMP 稀疏编码。
-- K-SVD 字典学习。
-- JMSDL 序贯训练和评分。
-- KDE 控制限与监测指标。
-- mPCA、DL、LCDL、ODL 基线方法。
+- 数据生成参数校验（`test_data_loader.py`）。
+- OMP 稀疏编码（`test_sparse_coding.py`）。
+- K-SVD 字典学习、JMSDL 序贯训练和评分（`test_ksvd_and_jmsdl.py`）。
+- KDE 控制限与监测指标（`test_monitoring.py`）。
+- mPCA、DL、LCDL、ODL 基线方法（`test_baselines.py`）。
+- 实验入口模块端到端冒烟测试（`test_experiment_modules.py`，小规模 config 跑通 run_jmsdl / exp_numerical / sensitivity_analysis）。
+- 可视化函数产图（`test_visualizer.py`，字典热力图、监测图、稀疏编码热力图）。
 
 ## 实现说明
 

@@ -1,12 +1,13 @@
-"""独立运行 JMSDL 模型：序贯训练 + 监测，结果输出到 outputs/run_jmsdl/。
+"""独立运行 JMSDL 模型：序贯训练 + 监测，结果输出到脚本同目录 main_model/run_jmsdl/。
 
 运行：
-    python experiments/run_jmsdl.py
+    python main_model/run_jmsdl/run_jmsdl.py
 
-输出（outputs/run_jmsdl/）：
+输出（main_model/run_jmsdl/）：
 - jmsdl_model.npz                 训练好的各阶段字典 + 控制限
 - jmsdl_scores.csv                逐样本监测分数与故障标签
 - D1..D4_dictionary_heatmap.png   各阶段字典热力图
+- jmsdl_sparse_codes_heatmap.png  测试数据在最终字典 D4 下的稀疏编码热力图
 - jmsdl_monitoring.png            监测结果图（分数 + 控制限 + 故障阴影 + FDR/FAR）
 - jmsdl_mre_matrix.png            各字典对各模态的 MRE 折线图（断轴，复现论文 Fig.8）
 """
@@ -16,7 +17,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -38,7 +39,11 @@ from experiments._common import (
 from jmsdl.model import JMSDL
 from jmsdl.monitoring.metrics import compute_far, compute_fdr
 from jmsdl.utils.data_loader import load_config
-from jmsdl.utils.visualizer import plot_dictionary_heatmap, plot_monitoring_scores
+from jmsdl.utils.visualizer import (
+    plot_dictionary_heatmap,
+    plot_monitoring_scores,
+    plot_sparse_code_heatmap,
+)
 
 
 def run_jmsdl(config: dict, show_progress: bool = True, data_dir: str | Path = ROOT / "data") -> dict[str, object]:
@@ -63,6 +68,7 @@ def run_jmsdl(config: dict, show_progress: bool = True, data_dir: str | Path = R
         "predictions": predictions,
         "fault_labels": fault_labels,
         "boundaries": boundaries,
+        "test_all": test_all,
         "fdr": compute_fdr(fault_labels, predictions),
         "far": compute_far(fault_labels, predictions),
         "mre_matrix": mre_mat,
@@ -123,7 +129,7 @@ def _plot_mre_matrix(mre_matrix: np.ndarray, output_path: Path) -> None:
 
 def main() -> None:
     config = load_config(ROOT / "config.yaml")
-    out_dir = ROOT / "outputs" / "run_jmsdl"
+    out_dir = Path(__file__).resolve().parent
     out_dir.mkdir(parents=True, exist_ok=True)
 
     result = run_jmsdl(config, show_progress=True)
@@ -148,6 +154,16 @@ def main() -> None:
         plot_dictionary_heatmap(
             dictionary, out_dir / f"D{index}_dictionary_heatmap.png", title=f"JMSDL Dictionary D{index}"
         )
+
+    # 测试数据在最终字典 D4 下的稀疏编码热力图（原子×样本）
+    test_codes = model.transform(np.asarray(result["test_all"], dtype=float))
+    plot_sparse_code_heatmap(
+        test_codes,
+        out_dir / "jmsdl_sparse_codes_heatmap.png",
+        mode_boundaries=result["boundaries"],
+        fault_labels=np.asarray(result["fault_labels"], dtype=int),
+        title="JMSDL Sparse Codes W",
+    )
 
     # 监测结果图
     plot_monitoring_scores(

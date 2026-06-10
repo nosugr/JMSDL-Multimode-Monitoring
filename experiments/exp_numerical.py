@@ -35,59 +35,59 @@ def run_numerical_experiment(
 
     alpha = monitoring_confidence(config)
     params = model_params(config)
-    baseline_cfg = config.get("baselines", {})
-    baseline_iter = int(baseline_cfg.get("max_iter", params["initial_max_iter"]))
+    standardize = bool(params["standardize"])
+    random_state = params["random_state"]
 
     monitors: list[tuple[str, object]] = []
     monitors.append(
         ("JMSDL", JMSDL(**params).fit(train_modes_features, alpha=alpha, show_progress=show_progress))
     )
+
+    mpca_monitor = MPCAMonitor(alpha=alpha)
+    mpca_monitor.standardize = standardize
+    mpca_monitor.random_state = random_state
+    mpca_monitor.fit(train_modes_samples, show_progress=show_progress, progress_desc="epoch[mPCA]")
     monitors.append(
-        (
-            "mPCA",
-            MPCAMonitor(cpv=float(baseline_cfg.get("pca_cpv", 0.85)), alpha=alpha).fit(
-                train_modes_samples, show_progress=show_progress, progress_desc="epoch[mPCA]"
-            ),
-        )
+        ("mPCA", mpca_monitor)
     )
-    monitors.append(
-        (
-            "DL",
-            DLMonitor(
-                n_atoms=int(params["n_atoms"]),
-                sparsity=int(params["sparsity"]),
-                alpha=alpha,
-                max_iter=baseline_iter,
-                tol=float(params["tol"]),
-                random_state=params["random_state"],
-            ).fit(train_modes_samples[0], show_progress=show_progress, progress_desc="epoch[DL]"),
-        )
+
+    dl_monitor = DLMonitor(
+        n_atoms=int(params["n_atoms"]),
+        sparsity=int(params["sparsity"]),
+        alpha=alpha,
+        tol=float(params["tol"]),
     )
+    dl_monitor.standardize = standardize
+    dl_monitor.random_state = random_state
+    dl_monitor.fit(train_modes_samples, show_progress=show_progress, progress_desc="epoch[DL]")
     monitors.append(
-        (
-            "LCDL",
-            LCDLMonitor(
-                n_atoms=int(params["n_atoms"]),
-                sparsity=int(params["sparsity"]),
-                alpha=alpha,
-                max_iter=baseline_iter,
-                tol=float(params["tol"]),
-                random_state=params["random_state"],
-            ).fit(train_modes_features, show_progress=show_progress, progress_desc="epoch[LCDL]"),
-        )
+        ("DL", dl_monitor)
     )
+
+    lcdl_monitor = LCDLMonitor(
+        n_atoms=int(params["n_atoms"]),
+        sparsity=int(params["sparsity"]),
+        alpha=alpha,
+        tol=float(params["tol"]),
+    )
+    lcdl_monitor.standardize = standardize
+    lcdl_monitor.random_state = random_state
+    lcdl_monitor.fit(train_modes_features, show_progress=show_progress, progress_desc="epoch[LCDL]")
     monitors.append(
-        (
-            "ODL",
-            ODLMonitor(
-                n_atoms=int(params["n_atoms"]),
-                sparsity=int(params["sparsity"]),
-                alpha=alpha,
-                max_iter=baseline_iter,
-                tol=float(params["tol"]),
-                random_state=params["random_state"],
-            ).fit(train_modes_features, show_progress=show_progress, progress_desc="epoch[ODL]"),
-        )
+        ("LCDL", lcdl_monitor)
+    )
+
+    odl_monitor = ODLMonitor(
+        n_atoms=int(params["n_atoms"]),
+        sparsity=int(params["sparsity"]),
+        alpha=alpha,
+        tol=float(params["tol"]),
+    )
+    odl_monitor.standardize = standardize
+    odl_monitor.random_state = random_state
+    odl_monitor.fit(train_modes_features, show_progress=show_progress, progress_desc="epoch[ODL]")
+    monitors.append(
+        ("ODL", odl_monitor)
     )
 
     rows: list[dict[str, float | str]] = []

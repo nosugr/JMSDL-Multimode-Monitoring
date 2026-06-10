@@ -73,6 +73,44 @@ def initialize_svd_dictionary(
     return normalize_columns(np.column_stack(atoms))
 
 
+def random_unit_atoms(
+    n_features: int,
+    n_atoms: int,
+    random_state: int | None = None,
+    rng: np.random.Generator | None = None,
+) -> np.ndarray:
+    """生成 n_features × n_atoms 的随机单位列字典（高斯采样后列归一化）。"""
+    if int(n_features) <= 0 or int(n_atoms) <= 0:
+        raise ValueError("n_features and n_atoms must be positive.")
+    generator = rng if rng is not None else np.random.default_rng(random_state)
+    atoms = generator.standard_normal((int(n_features), int(n_atoms)))
+    return normalize_columns(atoms)
+
+
+def reinitialize_dead_atoms(
+    dictionary: np.ndarray,
+    random_state: int | None = None,
+    rng: np.random.Generator | None = None,
+    eps: float = 1.0e-12,
+) -> tuple[np.ndarray, np.ndarray]:
+    """把零范数（死）原子用随机单位向量重初始化。
+
+    A/B 闭式更新不像 K-SVD 会重初始化未使用原子，死原子会让字典容量悄悄流失。
+    返回 (新字典, 被重初始化的原子索引)。
+    """
+    values = np.asarray(dictionary, dtype=float).copy()
+    if values.ndim != 2:
+        raise ValueError("dictionary must be a 2D matrix.")
+    norms = np.linalg.norm(values, axis=0)
+    dead = np.flatnonzero(norms < eps)
+    if dead.size:
+        generator = rng if rng is not None else np.random.default_rng(random_state)
+        replacement = generator.standard_normal((values.shape[0], dead.size))
+        values[:, dead] = replacement
+        values = normalize_columns(values)
+    return values, dead
+
+
 def initialize_dictionary_from_data(
     Y: np.ndarray,
     n_atoms: int,

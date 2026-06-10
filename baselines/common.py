@@ -32,16 +32,14 @@ class DictionaryMonitorBase:
         alpha: float = 0.99,
         max_iter: int = 30,
         tol: float = 1.0e-5,
-        standardize: bool = True,
-        random_state: int | None = 0,
     ) -> None:
         self.n_atoms = int(n_atoms)
         self.sparsity = int(sparsity)
         self.alpha = float(alpha)
         self.max_iter = int(max_iter)
         self.tol = float(tol)
-        self.standardize = bool(standardize)
-        self.random_state = random_state
+        self.standardize = False
+        self.random_state: int | None = 0
         self.dictionary_: np.ndarray | None = None
         self.threshold_: float | None = None
         self.n_features_: int | None = None

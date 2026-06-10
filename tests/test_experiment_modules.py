@@ -7,7 +7,7 @@ import pytest
 def _tiny_config() -> dict:
     """小规模 config，让实验模块在测试里能秒级跑完。"""
     return {
-        "seed": {"data_random_state": 0, "observation_matrix_seed": 40},
+        "seed": {"random_state": 0},
         "numerical_simulation": {
             "n_features": 6,
             "state_dim": 2,
@@ -18,6 +18,7 @@ def _tiny_config() -> dict:
             "fault_feature": 1,
             "fault_bias": 4.0,
             "timeseries_dims": [0, 1],
+            "kde_confidence": 0.95,
         },
         "model": {
             "n_atoms": 8,
@@ -28,8 +29,6 @@ def _tiny_config() -> dict:
             "update_max_iter": 2,
             "tol": 1.0e-5,
         },
-        "monitoring": {"kde_confidence": 0.95},
-        "baselines": {"pca_cpv": 0.85, "max_iter": 2},
         "sensitivity_analysis": {"lambda1_values": [1.0, 2.0], "n_runs": 2},
     }
 
@@ -45,7 +44,7 @@ def _tiny_data_dir(tmp_path) -> object:
 
 
 def test_run_jmsdl_returns_metrics(tmp_path) -> None:
-    from experiments.run_jmsdl import run_jmsdl
+    from main_model.run_jmsdl.run_jmsdl import run_jmsdl
 
     result = run_jmsdl(_tiny_config(), show_progress=False, data_dir=_tiny_data_dir(tmp_path))
 

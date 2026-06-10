@@ -120,7 +120,7 @@ class LCDLMonitor(DictionaryMonitorBase):
         alpha: float = 0.99,
         max_iter: int = 30,
         tol: float = 1.0e-5,
-        label_weight: float = 1.0,
+        label_weight: float =1.0,
     ) -> None:
         super().__init__(
             n_atoms=n_atoms,
@@ -250,7 +250,7 @@ def main() -> None:
     from jmsdl.utils.data_loader import load_config, load_saved_dataset
     from jmsdl.utils.visualizer import (
         plot_dictionary_heatmap,
-        plot_label_matrix,
+        plot_label_response,
         plot_monitoring_scores,
         plot_sparse_code_heatmap,
     )
@@ -260,8 +260,6 @@ def main() -> None:
     config = load_config(root / "config.yaml")
     dataset = load_saved_dataset(root / "data", config=config)
     model_cfg = config.get("model", {})
-    alpha = float(config.get("numerical_simulation", {}).get("kde_confidence", 0.99))
-    baseline_cfg = config.get("baselines", {})
 
     train_modes = [np.asarray(mode, dtype=float) for mode in dataset["train_modes"]]
     test_all = np.asarray(dataset["test_all"], dtype=float)
@@ -272,13 +270,9 @@ def main() -> None:
     train_boundaries = [index * n_train_per_mode for index in range(n_modes + 1)]
     boundaries = [index * n_test_per_mode for index in range(n_modes + 1)]
 
-    monitor = LCDLMonitor(
-        n_atoms=int(model_cfg.get("n_atoms", 80)),
-        sparsity=int(model_cfg.get("sparsity", 3)),
-        alpha=alpha,
-        tol=float(model_cfg.get("tol", 1.0e-5)),
-        label_weight=float(baseline_cfg.get("lcdl_label_weight", 1.0)),
-    )
+    # 超参数（n_atoms/sparsity/alpha/tol/label_weight）直接用 LCDLMonitor.__init__ 的默认值，
+    # 要调就改类定义，不再被 config.yaml 覆盖。
+    monitor = LCDLMonitor()
     monitor.standardize = bool(model_cfg.get("standardize", False))
     monitor.random_state = config.get("seed", {}).get("random_state", 0)
     # LCDL 一次性用全部模态训练一个全局标签一致性字典。
@@ -291,13 +285,15 @@ def main() -> None:
 
     plot_dictionary_heatmap(monitor.dictionary_, out_dir / "lcdl_dictionary_heatmap.png", title="LCDL Global Dictionary")
 
-    if monitor.label_matrix_ is not None:
-        plot_label_matrix(
-            monitor.label_matrix_,
-            out_dir / "lcdl_label_matrix.png",
+    # 变换后的标签响应 A·W 与理想 Q 的对比（上：A·W，下：残差 Q-A·W）。
+    if monitor.label_response_ is not None:
+        plot_label_response(
+            monitor.label_response_,
+            out_dir / "lcdl_label_response.png",
+            label_matrix=monitor.label_matrix_,
             mode_boundaries=train_boundaries,
             atom_ranges=monitor.mode_atom_ranges_,
-            title="Label Consistency Matrix Q",
+            title="LCDL Label Response A·W vs Ideal Q",
         )
 
     test_matrix = monitor._standardize(as_feature_by_sample(test_all, n_features=monitor.dictionary_.shape[0]))

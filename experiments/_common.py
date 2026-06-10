@@ -30,12 +30,13 @@ def model_params(config: dict) -> dict[str, object]:
         "initial_max_iter": int(model.get("initial_max_iter", 30)),
         "update_max_iter": int(model.get("update_max_iter", 30)),
         "tol": float(model.get("tol", 1.0e-5)),
-        "random_state": seed.get("data_random_state", 0),
+        "standardize": bool(model.get("standardize", False)),
+        "random_state": seed.get("random_state", 0),
     }
 
 
 def monitoring_confidence(config: dict) -> float:
-    return float(config.get("monitoring", {}).get("kde_confidence", 0.99))
+    return float(config.get("numerical_simulation", {}).get("kde_confidence", 0.99))
 
 
 def ensure_output_dirs(root: Path = ROOT) -> dict[str, Path]:

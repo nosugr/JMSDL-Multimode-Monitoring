@@ -76,7 +76,6 @@ def load_saved_dataset(data_dir: str | Path = "data", config: dict | None = None
         "test_normal": test_normal,
         "test_mode_labels": test_mode_labels,
         "test_all": test_all,
-        "test_faulty": test_all,
         "fault_labels": fault_labels,
         "fault_feature": int(simulation.get("fault_feature", 1)),
         "n_modes": int(n_modes),
@@ -131,7 +130,7 @@ def generate_multimode_dataset(
     fault_feature: int = 1,
     fault_bias: float = 4.0,
     random_state: int | None = 0,
-    observation_matrix_seed: int | None = 42,
+    observation_matrix_seed: int | None = 40,
 ) -> dict[str, object]:
     """生成完整的多模态数据集。
 
@@ -142,7 +141,7 @@ def generate_multimode_dataset(
     - test_modes: 长度 n_modes 的列表，每个 (n_test_per_mode, n_features)，全部正常
     - test_normal: (n_modes*n_test_per_mode, n_features)，按模态顺序堆叠（表示能力实验用）
     - test_mode_labels: (n_modes*n_test_per_mode,)
-    - test_faulty: 与 test_normal 同形，每个模态测试段末尾 n_fault_per_mode 个样本注入故障（监测实验用）
+    - test_all: 与 test_normal 同形，每个模态测试段末尾 n_fault_per_mode 个样本注入故障（监测实验用）
     - fault_labels: (n_modes*n_test_per_mode,)，0 正常 / 1 故障
     - observation_matrices: 长度 n_modes 的列表，每个 (n_features, state_dim)
     """
@@ -154,7 +153,7 @@ def generate_multimode_dataset(
             f"得到 n_fault_per_mode={n_fault_per_mode}, n_test_per_mode={n_test_per_mode}。"
         )
 
-    # 观测矩阵用独立种子，保证各模态结构在不同 data_random_state 下稳定
+    # 观测矩阵用独立种子，保证各模态结构在不同 random_state 下稳定
     obs_rng = np.random.default_rng(observation_matrix_seed)
     observation_matrices = [
         obs_rng.normal(0.0, 1.0, size=(n_features, state_dim)) for _ in range(n_modes)
@@ -184,14 +183,14 @@ def generate_multimode_dataset(
     test_mode_labels = np.repeat(np.arange(n_modes), n_test_per_mode)
 
     # 故障测试集：每个模态测试段末尾 n_fault_per_mode 个样本注入故障
-    test_faulty = test_normal.copy()
+    test_all = test_normal.copy()
     fault_labels = np.zeros(n_modes * n_test_per_mode, dtype=int)
     for mode_index in range(n_modes):
         segment_start = mode_index * n_test_per_mode
         fault_start = segment_start + (n_test_per_mode - n_fault_per_mode)
         fault_end = segment_start + n_test_per_mode
-        test_faulty[fault_start:fault_end] = _inject_fault_bias(
-            test_faulty[fault_start:fault_end], fault_feature, fault_bias
+        test_all[fault_start:fault_end] = _inject_fault_bias(
+            test_all[fault_start:fault_end], fault_feature, fault_bias
         )
         fault_labels[fault_start:fault_end] = 1
 
@@ -202,7 +201,7 @@ def generate_multimode_dataset(
         "test_modes": test_modes,
         "test_normal": test_normal,
         "test_mode_labels": test_mode_labels,
-        "test_faulty": test_faulty,
+        "test_all": test_all,
         "fault_labels": fault_labels,
         "observation_matrices": observation_matrices,
         "fault_feature": int(fault_feature),
@@ -227,8 +226,8 @@ def generate_from_config(config: dict) -> dict[str, object]:
         n_train_per_mode=sim["n_train_per_mode"],
         n_test_per_mode=sim["n_test_per_mode"],
         n_fault_per_mode=sim["n_fault_per_mode"],
+        noise_std=sim.get("noise_std", 0.31622776601683794),
         fault_feature=sim["fault_feature"],
         fault_bias=sim["fault_bias"],
-        random_state=seed_cfg.get("data_random_state", 0),
-        observation_matrix_seed=seed_cfg.get("observation_matrix_seed", 42),
+        random_state=seed_cfg.get("random_state", 0),
     )
