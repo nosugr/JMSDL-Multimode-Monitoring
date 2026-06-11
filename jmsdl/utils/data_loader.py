@@ -129,6 +129,7 @@ def generate_multimode_dataset(
     noise_std: float = 0.31622776601683794,
     fault_feature: int = 1,
     fault_bias: float = 4.0,
+    mode_scales: list[float] | None = None,
     random_state: int | None = 0,
     observation_matrix_seed: int | None = 40,
 ) -> dict[str, object]:
@@ -153,10 +154,18 @@ def generate_multimode_dataset(
             f"得到 n_fault_per_mode={n_fault_per_mode}, n_test_per_mode={n_test_per_mode}。"
         )
 
+    # 模态间尺度差异：让各模态数据量纲不同，复现论文图9的统计平均失效
+    if mode_scales is None:
+        scales = [1.0] * n_modes
+    else:
+        if len(mode_scales) != n_modes:
+            raise ValueError(f"mode_scales 长度须等于 n_modes={n_modes}，得到 {len(mode_scales)}。")
+        scales = [float(s) for s in mode_scales]
+
     # 观测矩阵用独立种子，保证各模态结构在不同 random_state 下稳定
     obs_rng = np.random.default_rng(observation_matrix_seed)
     observation_matrices = [
-        obs_rng.normal(0.0, 1.0, size=(n_features, state_dim)) for _ in range(n_modes)
+        scales[i] * obs_rng.normal(0.0, 1.0, size=(n_features, state_dim)) for i in range(n_modes)
     ]
 
     rng = np.random.default_rng(random_state)
@@ -229,5 +238,7 @@ def generate_from_config(config: dict) -> dict[str, object]:
         noise_std=sim.get("noise_std", 0.31622776601683794),
         fault_feature=sim["fault_feature"],
         fault_bias=sim["fault_bias"],
+        mode_scales=sim.get("mode_scales"),
         random_state=seed_cfg.get("random_state", 0),
+        observation_matrix_seed=seed_cfg.get("observation_matrix_seed", 40),
     )

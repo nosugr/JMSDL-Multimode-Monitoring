@@ -1,5 +1,6 @@
 seed:
   random_state: 42
+  observation_matrix_seed: 40
 
 numerical_simulation:
   n_features: 20
@@ -12,6 +13,7 @@ numerical_simulation:
   fault_feature: 16
   fault_bias: 3.5
   noise_std: 0.4
+  mode_scales: [1.0, 1.0, 1.0, 1.0]
   timeseries_dims: [0, 1]
 
   kde_confidence: 0.99
@@ -19,13 +21,13 @@ numerical_simulation:
 model:
   n_atoms: 80
   sparsity: 3
-  update_sparsity_values: [2, 2, 2]
-  lambda_values: [4.0, 20.0, 8.0]
+  update_sparsity_values: [3, 3, 5]
+  lambda_values: [0.0, 0.0, 0.0]
   initial_max_iter: 30
   update_max_iter: 50
   tol: 1.0e-5
 
-  standardize: false
+  standardize: true
 
 sensitivity_analysis:
   lambda1_values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
