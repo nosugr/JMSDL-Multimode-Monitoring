@@ -120,7 +120,7 @@ class LCDLMonitor(DictionaryMonitorBase):
         alpha: float = 0.99,
         max_iter: int = 30,
         tol: float = 1.0e-5,
-        label_weight: float =1.0,
+        label_weight: float =1.2,
     ) -> None:
         super().__init__(
             n_atoms=n_atoms,

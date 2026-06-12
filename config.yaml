@@ -11,9 +11,9 @@ numerical_simulation:
   n_fault_per_mode: 125
 
   fault_feature: 16
-  fault_bias: 3.5
-  noise_std: 0.4
-  mode_scales: [1.0, 1.0, 1.0, 1.0]
+  fault_bias: 4.0
+  noise_std: 0.5
+  mode_scales: [2.0, 2.0, 2.0, 2.0]
   timeseries_dims: [0, 1]
 
   kde_confidence: 0.99
@@ -27,7 +27,7 @@ model:
   update_max_iter: 50
   tol: 1.0e-5
 
-  standardize: false
+  standardize: true
 
 sensitivity_analysis:
   lambda1_values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
