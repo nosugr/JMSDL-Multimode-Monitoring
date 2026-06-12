@@ -22,12 +22,12 @@ model:
   n_atoms: 80
   sparsity: 3
   update_sparsity_values: [3, 3, 5]
-  lambda_values: [0.0, 0.0, 0.0]
+  lambda_values: [3.0, 2.5, 2.6]
   initial_max_iter: 30
   update_max_iter: 50
   tol: 1.0e-5
 
-  standardize: true
+  standardize: false
 
 sensitivity_analysis:
   lambda1_values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]

@@ -35,7 +35,7 @@ def save_observation_matrices_text(
     n_features, state_dim = observation_matrices[0].shape
     lines: list[str] = []
     lines.append("观测矩阵 A_i（论文式(26): x = A_i · s + e）")
-    lines.append(f"生成方式: scale_i * np.random.default_rng(40).normal(0, 1, size=({n_features}, {state_dim}))，连续抽 {len(observation_matrices)} 个，各模态乘以不同尺度因子")
+    lines.append(f"生成方式: scale_i * A_base, A_base = np.random.default_rng(40).normal(0, 1, size=({n_features}, {state_dim}))，共享基底乘以各模态尺度因子")
     lines.append(f"形状: 每个 {n_features} x {state_dim}  (n_features x state_dim)")
     lines.append("说明: 与 data/ 下已保存数据所用的完全一致，确定性可复现")
     lines.append("=" * 70)

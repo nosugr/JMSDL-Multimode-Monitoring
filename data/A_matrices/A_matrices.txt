@@ -1,5 +1,5 @@
 观测矩阵 A_i（论文式(26): x = A_i · s + e）
-生成方式: scale_i * np.random.default_rng(40).normal(0, 1, size=(20, 2))，连续抽 4 个，各模态乘以不同尺度因子
+生成方式: scale_i * A_base, A_base = np.random.default_rng(40).normal(0, 1, size=(20, 2))，共享基底乘以各模态尺度因子
 形状: 每个 20 x 2  (n_features x state_dim)
 说明: 与 data/ 下已保存数据所用的完全一致，确定性可复现
 ======================================================================

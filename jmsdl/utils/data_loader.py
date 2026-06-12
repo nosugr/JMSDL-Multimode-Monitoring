@@ -154,7 +154,7 @@ def generate_multimode_dataset(
             f"得到 n_fault_per_mode={n_fault_per_mode}, n_test_per_mode={n_test_per_mode}。"
         )
 
-    # 模态间尺度差异：让各模态数据量纲不同，复现论文图9的统计平均失效
+    # 模态间尺度差异：各模态独立随机 A × 尺度因子（论文式26: 不同随机矩阵 A_i）
     if mode_scales is None:
         scales = [1.0] * n_modes
     else:
@@ -162,7 +162,7 @@ def generate_multimode_dataset(
             raise ValueError(f"mode_scales 长度须等于 n_modes={n_modes}，得到 {len(mode_scales)}。")
         scales = [float(s) for s in mode_scales]
 
-    # 观测矩阵用独立种子，保证各模态结构在不同 random_state 下稳定
+    # 观测矩阵用独立种子，各模态独立抽取
     obs_rng = np.random.default_rng(observation_matrix_seed)
     observation_matrices = [
         scales[i] * obs_rng.normal(0.0, 1.0, size=(n_features, state_dim)) for i in range(n_modes)
